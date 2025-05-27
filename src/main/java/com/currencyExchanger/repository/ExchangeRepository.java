@@ -10,15 +10,13 @@ import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Repository
 public class ExchangeRepository {
     private final JdbcTemplate template;
-    private static final AtomicInteger EXCHANGE_ID = new AtomicInteger();
 
     @Autowired
-    ExchangeRepository(DataSource dataSource) {
+    public ExchangeRepository(DataSource dataSource) {
         this.template = new JdbcTemplate(dataSource);
     }
 
@@ -58,14 +56,11 @@ public class ExchangeRepository {
         return getExchangeById(id);
     }
 
-    public Exchange create(ExchangeWithoutIdDto exchange) {
-        final int id = EXCHANGE_ID.incrementAndGet();
-        template.update("INSERT INTO exchangerates (id, basecurrencyid, targetcurrencyid, rate) VALUES (?,?,?,?)",
-                id,
+    public void create(ExchangeWithoutIdDto exchange) {
+        template.update("INSERT INTO exchangerates (basecurrencyid, targetcurrencyid, rate) VALUES (?,?,?)",
                 exchange.getBaseCurrencyId(),
                 exchange.getTargetCurrencyId(),
                 exchange.getRate());
-        return getExchangeById(id);
     }
 
     public Currency getCurrencyById(int id) {
@@ -86,11 +81,11 @@ public class ExchangeRepository {
 
     public List<Double> getRatesByUSD(String baseCurr, String targetCurr) {
         var request = template.query("SELECT rate FROM exchangerates " +
-                    "WHERE basecurrencyid = ? AND (targetcurrencyid = ? OR targetcurrencyid = ?)",
-                    (rs, rowNum) -> rs.getDouble(1),
-                    getCurrencyByCode("USD").getId(),
-                    getCurrencyByCode(baseCurr).getId(),
-                    getCurrencyByCode(targetCurr).getId());
+                        "WHERE basecurrencyid = ? AND (targetcurrencyid = ? OR targetcurrencyid = ?)",
+                (rs, rowNum) -> rs.getDouble(1),
+                getCurrencyByCode("USD").getId(),
+                getCurrencyByCode(baseCurr).getId(),
+                getCurrencyByCode(targetCurr).getId());
         return request.size() != 2 ? null : request;
     }
 }

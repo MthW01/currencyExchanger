@@ -9,16 +9,14 @@ import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Repository
 public class CurrencyRepository {
 
     private final JdbcTemplate template;
-    private static final AtomicInteger CURRENCY_ID = new AtomicInteger();
 
     @Autowired
-    CurrencyRepository(DataSource dataSource) {
+    public CurrencyRepository(DataSource dataSource) {
         this.template = new JdbcTemplate(dataSource);
     }
 
@@ -35,12 +33,10 @@ public class CurrencyRepository {
     }
 
     public Currency create(CurrencyWithoutIdDto currency) {
-        final int id = CURRENCY_ID.incrementAndGet();
-        template.update("INSERT INTO currencies (id, code, sign, name) VALUES (?,?,?,?)",
-                id,
+        template.update("INSERT INTO currencies (code, sign, name) VALUES (?,?,?)",
                 currency.getCode(),
                 currency.getSign(),
                 currency.getName());
-        return new Currency(id, currency.getCode(), currency.getSign(), currency.getName());
+        return getByCode(currency.getCode());
     }
 }

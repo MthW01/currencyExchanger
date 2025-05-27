@@ -5,8 +5,8 @@ import org.springframework.data.annotation.Id;
 
 @Getter
 @Setter
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 @Data
 public class Currency {
     @Id
