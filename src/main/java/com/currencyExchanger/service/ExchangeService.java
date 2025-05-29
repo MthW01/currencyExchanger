@@ -6,7 +6,8 @@ import com.currencyExchanger.dto.exchangeDto.ExchangeWithoutIdDto;
 import com.currencyExchanger.model.Currency;
 import com.currencyExchanger.model.Exchange;
 import com.currencyExchanger.repository.ExchangeRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.currencyExchanger.utils.Utils;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -16,29 +17,25 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 @Service
 public class ExchangeService {
     private final ExchangeRepository exchangeRepository;
 
-    @Autowired
-    public ExchangeService(ExchangeRepository exchangeRepository) {
-        this.exchangeRepository = exchangeRepository;
-    }
-
     public ExchangeWithObjectsDto createExchange(Map<String, String> exchangeParams) {
-        var baseCurrCode = parseCode(exchangeParams.get("baseCurrencyCode"));
-        var targetCurrCode = parseCode(exchangeParams.get("targetCurrencyCode"));
+        var baseCurrCode = parseCode(exchangeParams.get(Utils.BASE_CURRENCY_CODE));
+        var targetCurrCode = parseCode(exchangeParams.get(Utils.TARGET_CURRENCY_CODE));
 
         if (exchangeRepository.getExchangeByCode(baseCurrCode, targetCurrCode) == null) {
             var exchange = new ExchangeWithoutIdDto(
                     getCurrencyByCode(baseCurrCode).getId(),
                     getCurrencyByCode(targetCurrCode).getId(),
-                    parseDouble(exchangeParams.get("rate")));
+                    parseDouble(exchangeParams.get(Utils.RATE)));
 
             exchangeRepository.create(exchange);
             return createExchangeWithObjectsByIds(exchangeRepository.getExchangeByCode(baseCurrCode, targetCurrCode));
         } else {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Exchange rate is already exists");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Exchange rate already exists");
         }
     }
 
@@ -57,7 +54,7 @@ public class ExchangeService {
     }
 
     public ExchangeWithObjectsDto updateExchangeRate(Map<String, String> params, String code) {
-        var rate = parseDouble(params.get("rate"));
+        var rate = parseDouble(params.get(Utils.RATE));
         var cutCode = cutCurrencyCodes(code);
         return Optional.ofNullable(exchangeRepository.getExchangeByCode(cutCode.get(0), cutCode.get(1)))
                 .map((Exchange exchange) -> createExchangeWithObjectsByIds(exchangeRepository.update(exchange.getId(), rate)))
@@ -84,7 +81,7 @@ public class ExchangeService {
         if (code.length() != 3 || !code.toUpperCase().matches("[A-Z]{3}")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bad request");
         }
-        return code;
+        return code.toUpperCase();
     }
 
     public Double parseDouble(String rate) {

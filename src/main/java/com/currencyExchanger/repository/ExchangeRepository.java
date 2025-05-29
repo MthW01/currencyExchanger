@@ -3,7 +3,7 @@ package com.currencyExchanger.repository;
 import com.currencyExchanger.dto.exchangeDto.ExchangeWithoutIdDto;
 import com.currencyExchanger.model.Currency;
 import com.currencyExchanger.model.Exchange;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.currencyExchanger.utils.Utils;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -15,7 +15,6 @@ import java.util.List;
 public class ExchangeRepository {
     private final JdbcTemplate template;
 
-    @Autowired
     public ExchangeRepository(DataSource dataSource) {
         this.template = new JdbcTemplate(dataSource);
     }
@@ -83,7 +82,7 @@ public class ExchangeRepository {
         var request = template.query("SELECT rate FROM exchangerates " +
                         "WHERE basecurrencyid = ? AND (targetcurrencyid = ? OR targetcurrencyid = ?)",
                 (rs, rowNum) -> rs.getDouble(1),
-                getCurrencyByCode("USD").getId(),
+                getCurrencyByCode(Utils.USD).getId(),
                 getCurrencyByCode(baseCurr).getId(),
                 getCurrencyByCode(targetCurr).getId());
         return request.size() != 2 ? null : request;

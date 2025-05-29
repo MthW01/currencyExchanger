@@ -1,48 +1,47 @@
 package com.currencyExchanger.controller;
 
+import com.currencyExchanger.dto.exchangeDto.ExchangeWithAmount;
+import com.currencyExchanger.dto.exchangeDto.ExchangeWithObjectsDto;
 import com.currencyExchanger.service.ExchangeService;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
+@RequiredArgsConstructor
 @RestController
 public class ExchangeController {
     private final ExchangeService exchangeService;
 
-    public ExchangeController(ExchangeService exchangeService) {
-        this.exchangeService = exchangeService;
-    }
-
     @GetMapping("/exchangeRates")
-    public ResponseEntity<?> getExchanges() {
-        return new ResponseEntity<>(exchangeService.findAll(), HttpStatus.OK);
+    public List<ExchangeWithObjectsDto> getExchanges() {
+        return exchangeService.findAll();
     }
 
     @GetMapping("/exchangeRate/{code}")
-    public ResponseEntity<?> getExchangeByCurrCodes(@PathVariable String code) {
-        return new ResponseEntity<>(exchangeService.findByCode(code), HttpStatus.OK);
+    public ExchangeWithObjectsDto getExchangeByCurrCodes(@PathVariable String code) {
+        return exchangeService.findByCode(code);
     }
 
     @PostMapping(value = "/exchangeRates",
             consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> createExchangeRate(@RequestParam Map<String, String> exchangeParams) {
-        return new ResponseEntity<>(exchangeService.createExchange(exchangeParams), HttpStatus.OK);
+    public ExchangeWithObjectsDto createExchangeRate(@RequestParam Map<String, String> exchangeParams) {
+        return exchangeService.createExchange(exchangeParams);
     }
 
     @PatchMapping(value = "/exchangeRate/{code}",
             consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
-            produces = "application/json")
-    public ResponseEntity<?> updateExchangeRate(@RequestParam Map<String, String> params,
-                                                @PathVariable String code) {
-        return new ResponseEntity<>(exchangeService.updateExchangeRate(params, code), HttpStatus.OK);
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ExchangeWithObjectsDto updateExchangeRate(@RequestParam Map<String, String> params,
+                                                     @PathVariable String code) {
+        return exchangeService.updateExchangeRate(params, code);
     }
 
     @GetMapping(value = "/exchange")
-    public ResponseEntity<?> getExchangeAmount(String from, String to, String amount) {
-        return new ResponseEntity<>(exchangeService.getAmountForExchange(from, to, amount), HttpStatus.OK);
+    public ExchangeWithAmount getExchangeAmount(String from, String to, String amount) {
+        return exchangeService.getAmountForExchange(from, to, amount);
     }
 }

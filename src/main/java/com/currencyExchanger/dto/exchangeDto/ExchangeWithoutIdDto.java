@@ -9,5 +9,5 @@ import lombok.*;
 public class ExchangeWithoutIdDto {
     private int baseCurrencyId;
     private int targetCurrencyId;
-    private Double rate;
+    private double rate;
 }
