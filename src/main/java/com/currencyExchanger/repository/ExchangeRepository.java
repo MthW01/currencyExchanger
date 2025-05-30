@@ -1,5 +1,6 @@
 package com.currencyExchanger.repository;
 
+import com.currencyExchanger.controller.customExceptions.NotFoundException;
 import com.currencyExchanger.dto.exchangeDto.ExchangeWithoutIdDto;
 import com.currencyExchanger.model.Currency;
 import com.currencyExchanger.model.Exchange;
@@ -44,7 +45,7 @@ public class ExchangeRepository {
                         new BeanPropertyRowMapper<>(Exchange.class), id)
                 .stream()
                 .findFirst()
-                .orElse(null);
+                .orElseThrow(() -> new NotFoundException("Exchange rate"));
     }
 
     public Exchange update(int id, Double rate) {
@@ -67,7 +68,7 @@ public class ExchangeRepository {
                         new BeanPropertyRowMapper<>(Currency.class), id)
                 .stream()
                 .findFirst()
-                .orElse(null);
+                .orElseThrow(() -> new NotFoundException("Currency"));
     }
 
     public Currency getCurrencyByCode(String code) {
@@ -75,7 +76,7 @@ public class ExchangeRepository {
                         new BeanPropertyRowMapper<>(Currency.class), code)
                 .stream()
                 .findFirst()
-                .orElse(null);
+                .orElseThrow(() -> new NotFoundException("Currency " + code));
     }
 
     public List<Double> getRatesByUSD(String baseCurr, String targetCurr) {
@@ -85,6 +86,10 @@ public class ExchangeRepository {
                 getCurrencyByCode(Utils.USD).getId(),
                 getCurrencyByCode(baseCurr).getId(),
                 getCurrencyByCode(targetCurr).getId());
-        return request.size() != 2 ? null : request;
+        if (request.size() != 2) {
+            throw new NotFoundException("Exchange rate");
+        } else {
+            return request;
+        }
     }
 }

@@ -1,5 +1,8 @@
 package com.currencyExchanger.service;
 
+import com.currencyExchanger.controller.customExceptions.AlreadyExistsException;
+import com.currencyExchanger.controller.customExceptions.NotFoundException;
+import com.currencyExchanger.controller.customExceptions.WrongRequestException;
 import com.currencyExchanger.dto.exchangeDto.ExchangeWithAmount;
 import com.currencyExchanger.dto.exchangeDto.ExchangeWithObjectsDto;
 import com.currencyExchanger.dto.exchangeDto.ExchangeWithoutIdDto;
@@ -7,10 +10,9 @@ import com.currencyExchanger.model.Currency;
 import com.currencyExchanger.model.Exchange;
 import com.currencyExchanger.repository.ExchangeRepository;
 import com.currencyExchanger.utils.Utils;
+import com.currencyExchanger.utils.Validator;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -23,27 +25,24 @@ public class ExchangeService {
     private final ExchangeRepository exchangeRepository;
 
     public ExchangeWithObjectsDto createExchange(Map<String, String> exchangeParams) {
-        var baseCurrCode = parseCode(exchangeParams.get(Utils.BASE_CURRENCY_CODE));
-        var targetCurrCode = parseCode(exchangeParams.get(Utils.TARGET_CURRENCY_CODE));
+        var baseCurrCode = Validator.parseCode(exchangeParams.get(Utils.BASE_CURRENCY_CODE));
+        var targetCurrCode = Validator.parseCode(exchangeParams.get(Utils.TARGET_CURRENCY_CODE));
 
         if (exchangeRepository.getExchangeByCode(baseCurrCode, targetCurrCode) == null) {
             var exchange = new ExchangeWithoutIdDto(
-                    getCurrencyByCode(baseCurrCode).getId(),
-                    getCurrencyByCode(targetCurrCode).getId(),
-                    parseDouble(exchangeParams.get(Utils.RATE)));
+                    getNotNullCurrencyByCode(baseCurrCode).getId(),
+                    getNotNullCurrencyByCode(targetCurrCode).getId(),
+                    Validator.parseDouble(exchangeParams.get(Utils.RATE)));
 
             exchangeRepository.create(exchange);
-            return createExchangeWithObjectsByIds(exchangeRepository.getExchangeByCode(baseCurrCode, targetCurrCode));
+            return createExchangeWithObjectsByIds(getNotNullExchangeByCode(baseCurrCode, targetCurrCode));
         } else {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Exchange rate already exists");
+            throw new AlreadyExistsException("Exchange rate " + baseCurrCode + targetCurrCode);
         }
     }
 
     public ExchangeWithObjectsDto findByCode(String code) {
-        var cuttedCode = cutCurrencyCodes(code);
-        return Optional.ofNullable(exchangeRepository.getExchangeByCode(cuttedCode.get(0), cuttedCode.get(1)))
-                .map(this::createExchangeWithObjectsByIds)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exchange rate not found"));
+        return createExchangeWithObjectsByIds(getNotNullExchangeByCode(getFirstCode(code), getSecondCode(code)));
     }
 
     public List<ExchangeWithObjectsDto> findAll() {
@@ -54,11 +53,10 @@ public class ExchangeService {
     }
 
     public ExchangeWithObjectsDto updateExchangeRate(Map<String, String> params, String code) {
-        var rate = parseDouble(params.get(Utils.RATE));
-        var cutCode = cutCurrencyCodes(code);
-        return Optional.ofNullable(exchangeRepository.getExchangeByCode(cutCode.get(0), cutCode.get(1)))
+        var rate = Validator.parseDouble(params.get(Utils.RATE));
+        return Optional.ofNullable(exchangeRepository.getExchangeByCode(getFirstCode(code), getSecondCode(code)))
                 .map((Exchange exchange) -> createExchangeWithObjectsByIds(exchangeRepository.update(exchange.getId(), rate)))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exchange rate not found"));
+                .orElseThrow(() -> new NotFoundException("Exchange rate " + code));
     }
 
     private ExchangeWithObjectsDto createExchangeWithObjectsByIds(Exchange exchange) {
@@ -69,44 +67,45 @@ public class ExchangeService {
                 exchange.getRate());
     }
 
-    private List<String> cutCurrencyCodes(String code) {
+    private String getSecondCode(String code) {
         try {
-            return List.of(parseCode(code.substring(0, 3)), parseCode(code.substring(3)));
+            return Validator.parseCode(code.substring(3));
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bad request");
+            throw new WrongRequestException("Currency value " + code);
         }
     }
 
-    public String parseCode(String code) {
-        if (code.length() != 3 || !code.toUpperCase().matches("[A-Z]{3}")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bad request");
-        }
-        return code.toUpperCase();
-    }
-
-    public Double parseDouble(String rate) {
+    private String getFirstCode(String code) {
         try {
-            return Double.parseDouble(rate);
+            return Validator.parseCode(code.substring(0, 3));
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bad request");
+            throw new WrongRequestException("Currency value " + code);
         }
     }
 
-    public Currency getCurrencyByCode(String code) {
-        return Optional.ofNullable(exchangeRepository.getCurrencyByCode(code))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Currency not found"));
+    public Currency getNotNullCurrencyByCode(String code) {
+        if (exchangeRepository.getCurrencyByCode(code) == null) {
+            throw new NotFoundException("Currency " + code);
+        } else {
+            return exchangeRepository.getCurrencyByCode(code);
+        }
+    }
+
+    public Exchange getNotNullExchangeByCode(String baseCode, String targetCode) {
+        if (exchangeRepository.getExchangeByCode(baseCode, targetCode) == null) {
+            throw new NotFoundException("Exchange rate " + baseCode + targetCode);
+        } else {
+            return exchangeRepository.getExchangeByCode(baseCode, targetCode);
+        }
     }
 
     public ExchangeWithAmount getAmountForExchange(String baseCurr, String targetCurr, String amountValue) {
-        if (exchangeRepository.getCurrencyByCode(baseCurr) == null || exchangeRepository.getCurrencyByCode(targetCurr) == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Currency not found");
-        }
         double rate = getRate(baseCurr, targetCurr);
-        double amount = parseDouble(amountValue);
+        double amount = Validator.parseDouble(amountValue);
 
         return new ExchangeWithAmount(
-                exchangeRepository.getCurrencyByCode(baseCurr),
-                exchangeRepository.getCurrencyByCode(targetCurr),
+                getNotNullCurrencyByCode(baseCurr),
+                getNotNullCurrencyByCode(targetCurr),
                 rate,
                 amount,
                 amount * rate);

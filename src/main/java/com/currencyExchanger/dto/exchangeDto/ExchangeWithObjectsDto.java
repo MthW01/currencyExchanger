@@ -1,7 +1,10 @@
 package com.currencyExchanger.dto.exchangeDto;
 
 import com.currencyExchanger.model.Currency;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
